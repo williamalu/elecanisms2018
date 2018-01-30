@@ -24,29 +24,44 @@
 ** POSSIBILITY OF SUCH DAMAGE.
 */
 #include "elecanisms.h"
+uint8_t ledState = 0;
+uint8_t recentPress = 0;
+
 
 void __attribute__((interrupt, auto_psv)) _T1Interrupt(void) {
-    IFS0bits.T1IF = 0;      // lower Timer1 interrupt flag
-
-    LED2 = !LED2;           // toggle LED2
+    IFS0bits.T1IF = 0;        // lower Timer1 interrupt flag
+    recentPress = FALSE;      // reset recentPress FALSE for button debounce
 }
 
 int16_t main(void) {
     init_elecanisms();
 
-    T1CON = 0x0030;         // set Timer1 period to 0.5s
+    T1CON = 0x0030;           // set Timer1 period to 0.5s
     PR1 = 0x7A11;
 
-    TMR1 = 0;               // set Timer1 count to 0
-    IFS0bits.T1IF = 0;      // lower Timer1 interrupt flag
-    IEC0bits.T1IE = 1;      // enable Timer1 interrupt
-    T1CONbits.TON = 1;      // turn on Timer1
+    TMR1 = 0;                 // set Timer1 count to 0
+    IFS0bits.T1IF = 0;        // lower Timer1 interrupt flag
+    IEC0bits.T1IE = 1;        // enable Timer1 interrupt
+    T1CONbits.TON = 1;        // turn on Timer1
 
     LED2 = ON;
 
     while (1) {
-        LED1 = (SW2 == 0) ? ON : OFF;   // turn LED1 on if SW2 is pressed 
-        LED3 = (SW3 == 0) ? ON : OFF;   // turn LED3 on if SW3 is pressed
+        if (D0 == 1 && recentPress == 0) {
+          ledState++;
+          TMR1 = 0;           // reset Timer1 count
+          recentPress = TRUE; // set recentPress flag TRUE for button debounce
+        }
+
+        if (ledState > 7) {
+          ledState = 0;       // reset ledState to 0
+        }
+
+        // With ledState being incremented, this displays counting by one in
+        // binary on the LEDs.
+        LED1 = (ledState >> 0) & 0x01;
+        LED2 = (ledState >> 1) & 0x01;
+        LED3 = (ledState >> 2) & 0x01;
     }
 }
 
